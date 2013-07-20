@@ -4,7 +4,7 @@ program BRIO
   !=============================================================================
   ! Author: Marc B.R. Joos
   !
-  ! Created/last modified: jun 26, 2013/jul 9, 2013
+  ! Created/last modified: jun 26, 2013/jul 19, 2013
   !
   ! This file is distributed under GNU/GPL licence, 
   ! see <http://www.gnu.org/licenses/>.
@@ -23,6 +23,7 @@ program BRIO
   real(8) :: randval
   integer :: ierr
   real(8) :: tbegin_px, tend_px, tbegin_nc, tend_nc, tbegin_h5, tend_h5
+  real(8) :: tbegin_ad, tend_ad
 
   ! MPI initialization
   call MPI_Init(ierr)
@@ -92,6 +93,13 @@ program BRIO
   tend_h5 = MPI_Wtime()
   if(myrank==0) write(*,*) 'Parallel HDF5 > time elapsed: '&
        , tend_h5 - tbegin_h5, 's'  
+#endif
+#if ADIOS == 1
+  tbegin_ad = MPI_Wtime()
+  call write_adios(data, xpos, ypos, zpos, myrank)
+  tend_ad = MPI_Wtime()
+  if(myrank==0) write(*,*) 'ADIOS > time elapsed: '&
+       , tend_ad - tbegin_ad, 's'  
 #endif
 
   deallocate(data)
@@ -380,6 +388,128 @@ program BRIO
 
       return
     end subroutine write_dataset_h5
+    !===========================================================================
+    subroutine write_adios(data, xpos, ypos, zpos, myrank)
+      use adios_write_mod
+      use params
+      implicit none
+      
+      include "mpif.h"
+      
+      integer :: xpos, ypos, zpos, myrank
+      real(8), dimension(xdim,ydim,zdim,nvar) :: data
+      integer, dimension(3) :: boxsize, domdecomp
+      character(LEN=13) :: filename
+
+      ! MPI & ADIOS variables
+      integer :: sizeMB=64
+      integer(8) :: adios_group, adios_handle, varid
+      integer(8) :: group_size, total_size
+      integer :: xdimglob, ydimglob, zdimglob
+      integer, dimension(3) :: offset
+      integer :: ierr
+
+      ! Init ADIOS
+      call ADIOS_Init_noXML(MPI_COMM_WORLD, ierr)
+      call ADIOS_Allocate_Buffer(sizeMB, ierr)
+
+      ! Group declaration:
+      !  - first argument is name of the group
+      !  - second argument is time index, if we want to store some variables
+      ! over time
+      !  - third argument is a flag saying if we want statistics (with some
+      ! overhead)
+      filename = "parallelio.ad"
+      call ADIOS_Declare_Group(adios_group, "dump", "", 0, ierr)
+
+      ! Method selection:
+      !  - first argument in 'POSIX', 'MPI', 'PHDF5' etc.
+      !  - second argument is options relatives to the chosen method
+      !  - third argument is root directory; default is current directory
+      call ADIOS_Select_Method(adios_group, "MPI", "", "", ierr)
+
+      ! call ADIOS_Define_Var(adios_group, "loc_dim", "", adios_integer, "", "" &
+      !      & , "", varid)
+      ! call ADIOS_Define_Var(adios_group, "glob_dim", "", adios_integer, "", "" &
+      !      & , "", varid)
+
+      call ADIOS_Define_Var(adios_group, "xdim", "", adios_integer, "", "" &
+           & , "", varid)
+      call ADIOS_Define_Var(adios_group, "ydim", "", adios_integer, "", "" &
+           & , "", varid)
+      call ADIOS_Define_Var(adios_group, "zdim", "", adios_integer, "", "" &
+           & , "", varid)
+      call ADIOS_Define_Var(adios_group, "xdimglob", "", adios_integer, "", "" &
+           & , "", varid)
+      call ADIOS_Define_Var(adios_group, "ydimglob", "", adios_integer, "", "" &
+           & , "", varid)
+      call ADIOS_Define_Var(adios_group, "zdimglob", "", adios_integer, "", "" &
+           & , "", varid)
+      call ADIOS_Define_Var(adios_group, "offset", "", adios_integer, "", "" &
+           & , "", varid)
+
+      call ADIOS_Define_Var(adios_group, "var1", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var2", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var3", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var4", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var5", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var6", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var7", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+      call ADIOS_Define_Var(adios_group, "var8", "", adios_double &
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+
+      ! call ADIOS_Define_Attribute()
+      ! call ADIOS_Write_ByID()
+
+      call ADIOS_Open(adios_handle, "dump", filename, "w", MPI_COMM_WORLD, ierr)
+
+      ! Size of the group = 4*(# metadata) + 8*(data size)
+      group_size = 4*9 + 8*xdim*ydim*zdim
+      call ADIOS_Group_Size(adios_handle, group_size, total_size, ierr)
+
+      ! Define offset and global dimensions
+      if(inline) then
+         offset(1) = 0
+         offset(2) = 0
+         offset(3) = zdim*myrank
+         xdimglob = xdim; ydimglob = ydim; zdimglob = zdim*nx*ny*nz
+      else
+         offset = (/ xdim, ydim, zdim /)*(/ xpos, ypos, zpos /)
+         xdimglob = xdim*nx; ydimglob = ydim*ny; zdimglob = zdim*nz
+      endif
+
+      ! Write metadata
+      call ADIOS_Write(adios_handle, "xdim", xdim, ierr)
+      call ADIOS_Write(adios_handle, "ydim", ydim, ierr)
+      call ADIOS_Write(adios_handle, "zdim", zdim, ierr)
+      call ADIOS_Write(adios_handle, "xdimglob", xdimglob, ierr)
+      call ADIOS_Write(adios_handle, "ydimglob", ydimglob, ierr)
+      call ADIOS_Write(adios_handle, "zdimglob", zdimglob, ierr)
+
+      ! Write data
+      call ADIOS_Write(adios_handle, "var1", data(:,:,:,1), ierr)
+      call ADIOS_Write(adios_handle, "var2", data(:,:,:,2), ierr)
+      call ADIOS_Write(adios_handle, "var3", data(:,:,:,3), ierr)
+      call ADIOS_Write(adios_handle, "var4", data(:,:,:,4), ierr)
+      call ADIOS_Write(adios_handle, "var5", data(:,:,:,5), ierr)
+      call ADIOS_Write(adios_handle, "var6", data(:,:,:,6), ierr)
+      call ADIOS_Write(adios_handle, "var7", data(:,:,:,7), ierr)
+      call ADIOS_Write(adios_handle, "var8", data(:,:,:,8), ierr)
+
+      ! call ADIOS_Write(adios_handle, "loc_dim", (/ /), ierr)
+      
+      call ADIOS_Close(adios_handle, ierr)
+      call ADIOS_Finalize(myrank, ierr)
+
+      return
+    end subroutine write_adios
     !===========================================================================
     subroutine read_params
       ! Read the parameters for the main program
