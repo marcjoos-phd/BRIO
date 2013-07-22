@@ -11,7 +11,7 @@
 # Define your environment & preprocessor options
 # IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, ALL)
 INTERACTIVE=0
-IOTYPE=ALL
+IOTYPE=ADIOS
 ARCH=LOCAL
 
 # IOTYPE definitions
@@ -95,6 +95,9 @@ ALLOBJ = $(MODOBJ) $(BRIOBJ)
 
 #============================================================================
 %.o:%.f90
+ifeq ($(ADIOS),1)
+	gpp.py adios_BRIO.xml
+endif
 	$(F90) $(HDFINC) $(CDFINC) $(ADIOSINC) $(FLAGS) $(MPIINC) $(CPPFLAGS) -c $^ -o $@
 #============================================================================
 BRIO: $(ALLOBJ)
@@ -132,5 +135,5 @@ endif
 all: BRIO
 #============================================================================
 clean:
-	rm *.o *.mod *.h5 *.nc *.bp
+	rm *.o *.mod *.h5 *.nc *.bp *.fh
 	rm -rf sequentialio/

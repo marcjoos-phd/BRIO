@@ -52,6 +52,11 @@ program BRIO
      else
         print*, "  - with naive writing"
      endif
+     if(xml)then
+        print*, "  - with XML ADIOS API"
+     else
+        print*, "  - with no-XML ADIOS API"
+     endif
      print*, "=========================================================="
   endif
 
@@ -102,11 +107,19 @@ program BRIO
        , tend_h5 - tbegin_h5, 's'  
 #endif
 #if ADIOS == 1
-  tbegin_ad = MPI_Wtime()
-  call write_adios(data, xpos, ypos, zpos, myrank)
-  tend_ad = MPI_Wtime()
-  if(myrank==0) write(*,*) 'ADIOS > time elapsed: '&
-       , tend_ad - tbegin_ad, 's'  
+  if(xml) then
+     tbegin_ad = MPI_Wtime()
+     call write_adios_XML(data, xpos, ypos, zpos, myrank)
+     tend_ad = MPI_Wtime()
+     if(myrank==0) write(*,*) 'ADIOS > time elapsed: '&
+          , tend_ad - tbegin_ad, 's'  
+  else
+     tbegin_ad = MPI_Wtime()
+     call write_adios_noXML(data, xpos, ypos, zpos, myrank)
+     tend_ad = MPI_Wtime()
+     if(myrank==0) write(*,*) 'ADIOS-noXML > time elapsed: '&
+          , tend_ad - tbegin_ad, 's'  
+  endif
 #endif
 
   deallocate(data)
@@ -396,7 +409,7 @@ program BRIO
       return
     end subroutine write_dataset_h5
     !===========================================================================
-    subroutine write_adios(data, xpos, ypos, zpos, myrank)
+    subroutine write_adios_noXML(data, xpos, ypos, zpos, myrank)
       use adios_write_mod
       use params
       implicit none
@@ -449,8 +462,6 @@ program BRIO
            & , "", varid)
       call ADIOS_Define_Var(adios_group, "zdimglob", "", adios_integer, "", "" &
            & , "", varid)
-      call ADIOS_Define_Var(adios_group, "three", "", adios_integer, "", "" &
-           & , "", varid)
       call ADIOS_Define_Var(adios_group, "offset_x", "", adios_integer, "" &
            & , "", "", varid)
       call ADIOS_Define_Var(adios_group, "offset_y", "", adios_integer, "" &
@@ -458,9 +469,9 @@ program BRIO
       call ADIOS_Define_Var(adios_group, "offset_z", "", adios_integer, "" &
            & , "" , "", varid)
       call ADIOS_Define_Var(adios_group, "boxsize", "", adios_integer &
-           & , "three", "", "", varid)
+           & , "3", "", "", varid)
       call ADIOS_Define_Var(adios_group, "domdecomp", "", adios_integer &
-           & , "three", "", "", varid)
+           & , "3", "", "", varid)
 
       ! Data definitions
       call ADIOS_Define_Var(adios_group, "var1", "", adios_double &
@@ -515,7 +526,6 @@ program BRIO
       call ADIOS_Write(adios_handle, "xdimglob", xdimglob, ierr)
       call ADIOS_Write(adios_handle, "ydimglob", ydimglob, ierr)
       call ADIOS_Write(adios_handle, "zdimglob", zdimglob, ierr)
-      call ADIOS_Write(adios_handle, "three", 3, ierr)
       call ADIOS_Write(adios_handle, "offset_x", offset_x, ierr)
       call ADIOS_Write(adios_handle, "offset_y", offset_y, ierr)
       call ADIOS_Write(adios_handle, "offset_z", offset_z, ierr)
@@ -537,7 +547,61 @@ program BRIO
       call ADIOS_Finalize(myrank, ierr)
 
       return
-    end subroutine write_adios
+    end subroutine write_adios_noXML
+    !===========================================================================
+    subroutine write_adios_XML(data, xpos, ypos, zpos, myrank)
+      use adios_write_mod
+      use params
+      implicit none
+      
+      include "mpif.h"
+      
+      integer :: xpos, ypos, zpos, myrank
+      real(8), dimension(xdim,ydim,zdim,nvar) :: data
+      integer, dimension(3) :: boxsize, domdecomp
+      character(LEN=13) :: filename
+
+      ! MPI & ADIOS variables
+      integer :: sizeMB=64
+      integer    :: adios_err
+      integer(8) :: adios_groupsize, adios_totalsize
+      integer(8) :: adios_group, adios_handle, varid
+      integer(8) :: offset_x, offset_y, offset_z
+      integer :: xdimglob, ydimglob, zdimglob
+      integer :: ierr
+
+      ! Init ADIOS
+      call ADIOS_Init("adios_BRIO.xml", MPI_COMM_WORLD, ierr)
+
+      ! Metadata definitions
+      boxsize   = (/ xdim, ydim, zdim /)
+      domdecomp = (/ nx, ny, nz /)
+
+      ! Define offset and global dimensions
+      if(inline) then
+         offset_x = 0
+         offset_y = 0
+         offset_z = zdim*myrank
+         xdimglob = xdim; ydimglob = ydim; zdimglob = zdim*nx*ny*nz
+      else
+         offset_x = xdim*xpos
+         offset_y = ydim*ypos
+         offset_z = zdim*zpos
+         xdimglob = xdim*nx; ydimglob = ydim*ny; zdimglob = zdim*nz
+      endif
+
+      ! Open ADIOS file & write data
+      call ADIOS_Open(adios_handle, "dump", "parallelio.bp", "w" &
+           & , MPI_COMM_WORLD, ierr)
+      ! Write I/O
+#include "gwrite_dump.fh"
+
+      ! Close ADIOS file and interface
+      call ADIOS_Close(adios_handle, ierr)
+      call ADIOS_Finalize(myrank, ierr)
+
+      return
+    end subroutine write_adios_XML
     !===========================================================================
     subroutine read_params
       ! Read the parameters for the main program
@@ -577,6 +641,8 @@ program BRIO
             read(arg,*) nz
          case ('-inline')
             read(arg,*) inline
+         case ('-xml')
+            read(arg,*) xml
          case default
             print '("unknown option ",a2," ignored")', opt
          end select
@@ -584,12 +650,14 @@ program BRIO
 #else
       namelist /model_params/ xdim, ydim, zdim, nx, ny, nz
       namelist /output_params/ inline
+      namelist /adios_params/ xml
 
       call default_params
       
       open(unit=1,file='input_BRIO',status='old')
       read(1,model_params)
       read(1,output_params)
+      read(1,adios_params)
       close(1)
 #endif
       
@@ -607,6 +675,9 @@ program BRIO
 
       ! Output parameters
       inline = .false.
+
+      ! ADIOS parameters
+      xml = .false.
 
       return
     end subroutine default_params

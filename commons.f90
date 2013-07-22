@@ -4,5 +4,6 @@ module params
   integer :: nx, ny, nz        ! number of MPI process in each direction
   integer :: xdim, ydim, zdim  ! size of the MPI sub-domains
   logical :: inline            ! if 'true', write contiguous data
+  logical :: xml               ! if 'true', use XML API for ADIOS I/O
 
 end module params
