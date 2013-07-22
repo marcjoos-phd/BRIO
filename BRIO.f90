@@ -4,7 +4,7 @@ program BRIO
   !=============================================================================
   ! Author: Marc B.R. Joos
   !
-  ! Created/last modified: jun 26, 2013/jul 19, 2013
+  ! Created/last modified: jun 26, 2013/jul 22, 2013
   !
   ! This file is distributed under GNU/GPL licence, 
   ! see <http://www.gnu.org/licenses/>.
@@ -28,9 +28,16 @@ program BRIO
   ! MPI initialization
   call MPI_Init(ierr)
   call MPI_Comm_rank(MPI_COMM_WORLD, myrank, ierr)
+  call MPI_Comm_Size(MPI_COMM_WORLD, nproc, ierr)
 
   ! Get parameters
   call read_params
+  if(nx*ny*nz .ne. nproc) then
+     if(myrank.eq.0) print '(/ "Your domain decomposition does not fit with the number of MPI processes! Exiting BRIO...",/ &
+          & "ncpu = ", I10, " different from nx*ny*nz = ", I10 /)', nproc, nx*ny*nz
+     call MPI_Finalize(ierr)
+     call exit(0)
+  endif
   call MPI_Barrier(MPI_COMM_WORLD, ierr)
   if(myrank.eq.0) then
      print*, "=========================================================="
@@ -404,9 +411,8 @@ program BRIO
       ! MPI & ADIOS variables
       integer :: sizeMB=64
       integer(8) :: adios_group, adios_handle, varid
-      integer(8) :: group_size, total_size
+      integer(8) :: group_size, total_size, offset_x, offset_y, offset_z
       integer :: xdimglob, ydimglob, zdimglob
-      integer, dimension(3) :: offset
       integer :: ierr
 
       ! Init ADIOS
@@ -419,7 +425,7 @@ program BRIO
       ! over time
       !  - third argument is a flag saying if we want statistics (with some
       ! overhead)
-      filename = "parallelio.ad"
+      filename = "parallelio.bp"
       call ADIOS_Declare_Group(adios_group, "dump", "", 0, ierr)
 
       ! Method selection:
@@ -428,11 +434,9 @@ program BRIO
       !  - third argument is root directory; default is current directory
       call ADIOS_Select_Method(adios_group, "MPI", "", "", ierr)
 
-      ! call ADIOS_Define_Var(adios_group, "loc_dim", "", adios_integer, "", "" &
-      !      & , "", varid)
-      ! call ADIOS_Define_Var(adios_group, "glob_dim", "", adios_integer, "", "" &
-      !      & , "", varid)
-
+      ! Metadata definitions
+      boxsize   = (/ xdim, ydim, zdim /)
+      domdecomp = (/ nx, ny, nz /)
       call ADIOS_Define_Var(adios_group, "xdim", "", adios_integer, "", "" &
            & , "", varid)
       call ADIOS_Define_Var(adios_group, "ydim", "", adios_integer, "", "" &
@@ -445,43 +449,62 @@ program BRIO
            & , "", varid)
       call ADIOS_Define_Var(adios_group, "zdimglob", "", adios_integer, "", "" &
            & , "", varid)
-      call ADIOS_Define_Var(adios_group, "offset", "", adios_integer, "", "" &
+      call ADIOS_Define_Var(adios_group, "three", "", adios_integer, "", "" &
            & , "", varid)
+      call ADIOS_Define_Var(adios_group, "offset_x", "", adios_integer, "" &
+           & , "", "", varid)
+      call ADIOS_Define_Var(adios_group, "offset_y", "", adios_integer, "" &
+           & , "" , "", varid)
+      call ADIOS_Define_Var(adios_group, "offset_z", "", adios_integer, "" &
+           & , "" , "", varid)
+      call ADIOS_Define_Var(adios_group, "boxsize", "", adios_integer &
+           & , "three", "", "", varid)
+      call ADIOS_Define_Var(adios_group, "domdecomp", "", adios_integer &
+           & , "three", "", "", varid)
 
+      ! Data definitions
       call ADIOS_Define_Var(adios_group, "var1", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var2", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var3", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var4", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var5", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var6", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var7", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
       call ADIOS_Define_Var(adios_group, "var8", "", adios_double &
-        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob", "offset", varid)
+        & , "xdim, ydim, zdim", "xdimglob, ydimglob, zdimglob" &
+        & , "offset_x, offset_y, offset_z", varid)
 
-      ! call ADIOS_Define_Attribute()
-      ! call ADIOS_Write_ByID()
-
+      ! Open file
       call ADIOS_Open(adios_handle, "dump", filename, "w", MPI_COMM_WORLD, ierr)
 
       ! Size of the group = 4*(# metadata) + 8*(data size)
-      group_size = 4*9 + 8*xdim*ydim*zdim
+      group_size = 4*20 + 8*xdim*ydim*zdim*8
       call ADIOS_Group_Size(adios_handle, group_size, total_size, ierr)
 
       ! Define offset and global dimensions
       if(inline) then
-         offset(1) = 0
-         offset(2) = 0
-         offset(3) = zdim*myrank
+         offset_x = 0
+         offset_y = 0
+         offset_z = zdim*myrank
          xdimglob = xdim; ydimglob = ydim; zdimglob = zdim*nx*ny*nz
       else
-         offset = (/ xdim, ydim, zdim /)*(/ xpos, ypos, zpos /)
+         offset_x = xdim*xpos
+         offset_y = ydim*ypos
+         offset_z = zdim*zpos
          xdimglob = xdim*nx; ydimglob = ydim*ny; zdimglob = zdim*nz
       endif
 
@@ -492,6 +515,12 @@ program BRIO
       call ADIOS_Write(adios_handle, "xdimglob", xdimglob, ierr)
       call ADIOS_Write(adios_handle, "ydimglob", ydimglob, ierr)
       call ADIOS_Write(adios_handle, "zdimglob", zdimglob, ierr)
+      call ADIOS_Write(adios_handle, "three", 3, ierr)
+      call ADIOS_Write(adios_handle, "offset_x", offset_x, ierr)
+      call ADIOS_Write(adios_handle, "offset_y", offset_y, ierr)
+      call ADIOS_Write(adios_handle, "offset_z", offset_z, ierr)
+      call ADIOS_Write(adios_handle, "boxsize", boxsize, ierr)
+      call ADIOS_Write(adios_handle, "domdecomp", domdecomp, ierr)
 
       ! Write data
       call ADIOS_Write(adios_handle, "var1", data(:,:,:,1), ierr)
@@ -503,8 +532,7 @@ program BRIO
       call ADIOS_Write(adios_handle, "var7", data(:,:,:,7), ierr)
       call ADIOS_Write(adios_handle, "var8", data(:,:,:,8), ierr)
 
-      ! call ADIOS_Write(adios_handle, "loc_dim", (/ /), ierr)
-      
+      ! Close file and ADIOS interface
       call ADIOS_Close(adios_handle, ierr)
       call ADIOS_Finalize(myrank, ierr)
 

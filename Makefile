@@ -11,7 +11,7 @@
 # Define your environment & preprocessor options
 # IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, ALL)
 INTERACTIVE=0
-IOTYPE=ADIOS
+IOTYPE=ALL
 ARCH=LOCAL
 
 # IOTYPE definitions
@@ -48,12 +48,13 @@ ADIOS=1
 endif
 
 # On sappcm197
+# /!\ with ADIOS, you sould prefer mpif90 over your regular compiler + flags
 #===============================================================================
-F90_LOCAL      = gfortran
+F90_LOCAL      = mpif90 # gfortran
 FFLAGS_LOCAL   = -O3
 CPPFLAGS_LOCAL = -x f95-cpp-input -DINTERACTIVE=$(INTERACTIVE) -DPOSIX=$(POSIX) -DPNCDF=$(PNCDF) -DPHDF5=$(PHDF5) -DADIOS=$(ADIOS)
-MPIINC_LOCAL   = -I/local/home/mjoos/soft/build/include/ 
-MPILIB_LOCAL   = -L/local/home/mjoos/soft/build/lib -lmpi -lmpi_f77
+MPIINC_LOCAL   = # -I/local/home/mjoos/soft/build/include/ 
+MPILIB_LOCAL   = # -L/local/home/mjoos/soft/build/lib -lmpi -lmpi_f77
 HDFINC_LOCAL   = -I/local/home/mjoos/soft/hdf5-para/include/ 
 HDFLIB_LOCAL   = -L/local/home/mjoos/soft/hdf5-para/lib -lhdf5_fortran -lhdf5 -lz
 CDFINC_LOCAL   = -I/local/home/mjoos/soft/build/include/
@@ -131,5 +132,5 @@ endif
 all: BRIO
 #============================================================================
 clean:
-	rm *.o *.mod *.h5 *.nc 
+	rm *.o *.mod *.h5 *.nc *.bp
 	rm -rf sequentialio/

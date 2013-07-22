@@ -3,7 +3,7 @@
 #===============================================================================
 # Author: Marc B.R. Joos
 #
-# Created/last modified: jun 26, 2013/jul 3, 2013
+# Created/last modified: jun 26, 2013/jul 22, 2013
 #
 # This file is distributed under GNU/GPL licence, 
 # see <http://www.gnu.org/licenses/>.
@@ -149,15 +149,22 @@ class dataCDF:
         f.close()
 
 class dataHDF: 
-    def __init__(self, fdir='./', fname='parallelio', inline=False):
+    def __init__(self, fdir='./', fname='parallelio', inline=False, fromADIOS=False):
         filetoread = fdir + fname + '.h5'
         f   = hdf.openFile(filetoread)
         dim = f.root.boxsize[:]
         dec = f.root.domdecomp[:]
-        xdim, ydim, zdim    = dim
-        nx, ny, nz          = dec
+        if fromADIOS:
+            xdim, ydim, zdim    = dim[0]
+            nx, ny, nz          = dec[0]
+        else:
+            xdim, ydim, zdim    = dim
+            nx, ny, nz          = dec
         nproc               = nx*ny*nz
-        nxtot, nytot, nztot = dim*dec
+        if fromADIOS:
+            nxtot, nytot, nztot = dim[0]*dec[0]
+        else:
+            nxtot, nytot, nztot = dim*dec
         self.dimGlob = np.array([nxtot, nytot, nztot])
         self.dim = dim; self.dec = dec; self.nproc = nproc
         if inline:
