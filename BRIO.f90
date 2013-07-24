@@ -4,7 +4,7 @@ program BRIO
   !=============================================================================
   ! Author: Marc B.R. Joos
   !
-  ! Created/last modified: jun 26, 2013/jul 22, 2013
+  ! Created/last modified: jun 26, 2013/jul 24, 2013
   !
   ! This file is distributed under GNU/GPL licence, 
   ! see <http://www.gnu.org/licenses/>.
@@ -52,11 +52,13 @@ program BRIO
      else
         print*, "  - with naive writing"
      endif
+#if ADIOS == 1
      if(xml)then
         print*, "  - with XML ADIOS API"
      else
         print*, "  - with no-XML ADIOS API"
      endif
+#endif
      print*, "=========================================================="
   endif
 
@@ -129,6 +131,7 @@ program BRIO
     !===========================================================================
     !=============================  SUBROUTINES  ===============================
     !===========================================================================
+#if POSIX == 1
     subroutine write_posix(data, xpos, ypos, zpos, myrank)
       use params
       implicit none
@@ -152,7 +155,9 @@ program BRIO
 
       return
     end subroutine write_posix
+#endif
     !===========================================================================
+#if PNCDF == 1
     subroutine write_pncdf(data, xpos, ypos, zpos, myrank)
       use pnetcdf
       use params
@@ -259,7 +264,9 @@ program BRIO
 
       return
     end subroutine write_pncdf
+#endif
     !===========================================================================
+#if PHDF5 == 1
     subroutine write_phdf5(data, xpos, ypos, zpos, myrank)
       use hdf5
       use params
@@ -274,7 +281,7 @@ program BRIO
 
       ! HDF5 variables
       integer :: ierr
-      integer(HID_T) :: file_id, fapl_id, driver_id
+      integer(HID_T) :: file_id, fapl_id
       integer(HID_T) :: h5_dspace, h5_dset
       integer(HSIZE_T), dimension(3) :: dim_meta
 
@@ -283,28 +290,34 @@ program BRIO
 
       ! Create HDF5 property IDs for parallel file access
       filename = 'parallelio.h5'
+      if(myrank.eq.0) then
+         call H5Fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, ierr)
+         
+         ! Define and write some metadata
+         boxsize   = (/ xdim, ydim, zdim /)
+         domdecomp = (/ nx, ny, nz /)
+         dim_meta  = 3
+         call H5Screate_simple_f(1, dim_meta, h5_dspace, ierr)
+         call H5Dcreate_f(file_id, "boxsize", H5T_NATIVE_INTEGER, &
+              & h5_dspace, h5_dset, ierr)
+         call H5Dwrite_f(h5_dset, H5T_NATIVE_INTEGER, boxsize, dim_meta, ierr)
+         call H5Dclose_f(h5_dset, ierr)
+         call H5Sclose_f(h5_dspace, ierr)
+         call H5Screate_simple_f(1, dim_meta, h5_dspace, ierr)
+         call H5Dcreate_f(file_id, "domdecomp", H5T_NATIVE_INTEGER, &
+              & h5_dspace, h5_dset, ierr)
+         call H5Dwrite_f(h5_dset, H5T_NATIVE_INTEGER, domdecomp, dim_meta, ierr)
+         call H5Dclose_f(h5_dset, ierr)
+         call H5Sclose_f(h5_dspace, ierr)
+         
+         call H5Fclose_f(file_id, ierr)
+      endif
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
       call H5Pcreate_f(H5P_FILE_ACCESS_F, fapl_id, ierr)
       call H5Pset_fapl_mpio_f(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL, ierr)
-      call H5Pget_driver_f(fapl_id, driver_id, ierr)
-      call H5Fcreate_f(filename, H5F_ACC_TRUNC_F, file_id, ierr &
+      call H5Fopen_f(filename, H5F_ACC_RDWR_F, file_id, ierr &
            , access_prp=fapl_id)
-
-      ! Define and write some metadata
-      boxsize   = (/ xdim, ydim, zdim /)
-      domdecomp = (/ nx, ny, nz /)
-      dim_meta  = 3
-      call H5Screate_simple_f(1, dim_meta, h5_dspace, ierr)
-      call H5Dcreate_f(file_id, "boxsize", H5T_NATIVE_INTEGER, &
-           & h5_dspace, h5_dset, ierr)
-      call H5Dwrite_f(h5_dset, H5T_NATIVE_INTEGER, boxsize, dim_meta, ierr)
-      call H5Dclose_f(h5_dset, ierr)
-      call H5Sclose_f(h5_dspace, ierr)
-      call H5Screate_simple_f(1, dim_meta, h5_dspace, ierr)
-      call H5Dcreate_f(file_id, "domdecomp", H5T_NATIVE_INTEGER, &
-           & h5_dspace, h5_dset, ierr)
-      call H5Dwrite_f(h5_dset, H5T_NATIVE_INTEGER, domdecomp, dim_meta, ierr)
-      call H5Dclose_f(h5_dset, ierr)
-      call H5Sclose_f(h5_dspace, ierr)
 
       ! Write data
       call write_dataset_h5(file_id, "var1", data(:,:,:,1), xpos, ypos, zpos&
@@ -343,10 +356,9 @@ program BRIO
       integer :: xpos, ypos, zpos, myrank
 
       ! HDF5 variables
-      integer(HID_T) :: prop_data_chunk_id, dxpl_id
-      integer(HID_T) :: loc_id, h5_dspace, h5_dset, h5_dspace_file
+      integer(HID_T) :: loc_id, dxpl_id, h5_dspace, h5_dset, h5_dspace_file
       integer(HSIZE_T), dimension(3) :: start, count, stride, blockSize
-      integer(HSIZE_T), dimension(3) :: dims, dims_file, dims_chunk
+      integer(HSIZE_T), dimension(3) :: dims, dims_file
 
       dims      = (/ xdim, ydim, zdim /)
       if(inline) then
@@ -381,26 +393,21 @@ program BRIO
       call H5Sselect_hyperslab_f(h5_dspace_file, H5S_SELECT_SET_F, start, count&
            , ierr, stride, blockSize)
        
-      ! create property id for our data chunk
-      dims_chunk = dims
-      call H5Pcreate_f(H5P_DATASET_CREATE_F, prop_data_chunk_id, ierr)
-      call H5Pset_chunk_f(prop_data_chunk_id, 3, dims_chunk, ierr)
-       
-      ! enable parallel collective IO
+      ! Enable parallel collective IO
       call H5Pcreate_f(H5P_DATASET_XFER_F, dxpl_id, ierr)
       call H5Pset_dxpl_mpio_f(dxpl_id, H5FD_MPIO_COLLECTIVE_F, ierr)
        
-      ! create data set
-      call H5Dcreate_f(loc_id, trim(dsetname), H5T_NATIVE_DOUBLE&
-           , h5_dspace_file, h5_dset, ierr, prop_data_chunk_id) 
-       
-      ! finally write data to file
-      call H5Dwrite_f(h5_dset, H5T_NATIVE_DOUBLE, data, dims, ierr&
-           , mem_space_id=h5_dspace, file_space_id=h5_dspace_file&
+      ! Create data set
+      call H5Dcreate_f(loc_id, trim(dsetname), H5T_NATIVE_DOUBLE &
+           , h5_dspace_file, h5_dset, ierr, H5P_DEFAULT_F, H5P_DEFAULT_F &
+           , H5P_DEFAULT_F)
+ 
+      ! Finally write data to file
+      call H5Dwrite_f(h5_dset, H5T_NATIVE_DOUBLE, data, dims, ierr &
+           , mem_space_id=h5_dspace, file_space_id=h5_dspace_file &
            , xfer_prp=dxpl_id)
        
-      ! clean HDF5 IDs
-      call H5Pclose_f(prop_data_chunk_id, ierr)
+      ! Clean HDF5 IDs
       call H5Pclose_f(dxpl_id, ierr)
       call H5Dclose_f(h5_dset, ierr)
       call H5Sclose_f(h5_dspace, ierr)
@@ -408,7 +415,9 @@ program BRIO
 
       return
     end subroutine write_dataset_h5
+#endif
     !===========================================================================
+#if ADIOS == 1
     subroutine write_adios_noXML(data, xpos, ypos, zpos, myrank)
       use adios_write_mod
       use params
@@ -419,7 +428,7 @@ program BRIO
       integer :: xpos, ypos, zpos, myrank
       real(8), dimension(xdim,ydim,zdim,nvar) :: data
       integer, dimension(3) :: boxsize, domdecomp
-      character(LEN=13) :: filename
+      character(LEN=19) :: filename
 
       ! MPI & ADIOS variables
       integer :: sizeMB=64
@@ -438,7 +447,7 @@ program BRIO
       ! over time
       !  - third argument is a flag saying if we want statistics (with some
       ! overhead)
-      filename = "parallelio.bp"
+      filename = "parallelio_noXML.bp"
       call ADIOS_Declare_Group(adios_group, "dump", "", 0, ierr)
 
       ! Method selection:
@@ -559,7 +568,7 @@ program BRIO
       integer :: xpos, ypos, zpos, myrank
       real(8), dimension(xdim,ydim,zdim,nvar) :: data
       integer, dimension(3) :: boxsize, domdecomp
-      character(LEN=13) :: filename
+      character(LEN=17) :: filename
 
       ! MPI & ADIOS variables
       integer :: sizeMB=64
@@ -591,7 +600,7 @@ program BRIO
       endif
 
       ! Open ADIOS file & write data
-      call ADIOS_Open(adios_handle, "dump", "parallelio.bp", "w" &
+      call ADIOS_Open(adios_handle, "dump", "parallelio_XML.bp", "w" &
            & , MPI_COMM_WORLD, ierr)
       ! Write I/O
 #include "gwrite_dump.fh"
@@ -602,6 +611,7 @@ program BRIO
 
       return
     end subroutine write_adios_XML
+#endif
     !===========================================================================
     subroutine read_params
       ! Read the parameters for the main program
