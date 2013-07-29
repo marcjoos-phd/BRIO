@@ -9,9 +9,9 @@
 # see <http://www.gnu.org/licenses/>.
 #===============================================================================
 # Define your environment & preprocessor options
-# IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, ALL)
+# IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, MPIIO, ALL)
 INTERACTIVE=0
-IOTYPE=ALL
+IOTYPE=MPIIO
 ARCH=LOCAL
 
 # IOTYPE definitions
@@ -21,38 +21,50 @@ POSIX=1
 PNCDF=0
 PHDF5=0
 ADIOS=0
+MPIIO=0
 endif
 ifeq ($(IOTYPE),PNCDF)
 POSIX=0
 PNCDF=1
 PHDF5=0
 ADIOS=0
+MPIIO=0
 endif
 ifeq ($(IOTYPE),PHDF5)
 POSIX=0
 PNCDF=0
 PHDF5=1
 ADIOS=0
+MPIIO=0
 endif
 ifeq ($(IOTYPE),ADIOS)
 POSIX=0
 PNCDF=0
 PHDF5=0
 ADIOS=1
+MPIIO=0
+endif
+ifeq ($(IOTYPE),MPIIO)
+POSIX=0
+PNCDF=0
+PHDF5=0
+ADIOS=0
+MPIIO=1
 endif
 ifeq ($(IOTYPE),ALL)
 POSIX=1
 PNCDF=1
 PHDF5=1
 ADIOS=1
+MPIIO=1
 endif
 
 # On sappcm197
 # /!\ with ADIOS, you sould prefer mpif90 over your regular compiler + flags
 #===============================================================================
 F90_LOCAL      = mpif90 # gfortran
-FFLAGS_LOCAL   = -O3
-CPPFLAGS_LOCAL = -x f95-cpp-input -DINTERACTIVE=$(INTERACTIVE) -DPOSIX=$(POSIX) -DPNCDF=$(PNCDF) -DPHDF5=$(PHDF5) -DADIOS=$(ADIOS)
+FFLAGS_LOCAL   = -O3 -backtrace
+CPPFLAGS_LOCAL = -x f95-cpp-input -DINTERACTIVE=$(INTERACTIVE) -DPOSIX=$(POSIX) -DPNCDF=$(PNCDF) -DPHDF5=$(PHDF5) -DADIOS=$(ADIOS) -DMPIIO=$(MPIIO)
 MPIINC_LOCAL   = # -I/local/home/mjoos/soft/build/include/ 
 MPILIB_LOCAL   = # -L/local/home/mjoos/soft/build/lib -lmpi -lmpi_f77
 HDFINC_LOCAL   = -I/local/home/mjoos/soft/hdf5-para/include/ 
@@ -118,11 +130,15 @@ endif
 ifeq ($(IOTYPE),ADIOS)
 	@echo " - Adaptive I/O System"
 endif
+ifeq ($(IOTYPE),MPIIO)
+	@echo " - MPI-IO"
+endif
 ifeq ($(IOTYPE),ALL)
 	@echo " - Sequential POSIX I/O"
 	@echo " - Parallel NetCDF I/O"
 	@echo " - Parallel HDF5 I/O"
 	@echo " - Adaptive I/O System"
+	@echo " - MPI-IO"
 endif
 ifeq ($(INTERACTIVE),1)
 	@echo " - interactive interface"
@@ -135,5 +151,5 @@ endif
 all: BRIO
 #============================================================================
 clean:
-	rm *.o *.mod *.h5 *.nc *.bp *.fh
+	rm *.o *.mod *.h5 *.nc *.bp *.fh *.mp
 	rm -rf sequentialio/

@@ -23,7 +23,7 @@ program BRIO
   real(8) :: randval
   integer :: ierr
   real(8) :: tbegin_px, tend_px, tbegin_nc, tend_nc, tbegin_h5, tend_h5
-  real(8) :: tbegin_ad, tend_ad
+  real(8) :: tbegin_ad, tend_ad, tbegin_mp, tend_mp
 
   ! MPI initialization
   call MPI_Init(ierr)
@@ -122,6 +122,13 @@ program BRIO
      if(myrank==0) write(*,*) 'ADIOS-noXML > time elapsed: '&
           , tend_ad - tbegin_ad, 's'  
   endif
+#endif
+#if MPIIO == 1
+  tbegin_mp = MPI_Wtime()
+  call write_mpiio(data, xpos, ypos, zpos, myrank)
+  tend_mp = MPI_Wtime()
+  if(myrank==0) write(*,*) 'MPI-IO > time elapsed: '&
+       , tend_mp - tbegin_mp, 's'  
 #endif
 
   deallocate(data)
@@ -611,6 +618,68 @@ program BRIO
 
       return
     end subroutine write_adios_XML
+#endif
+    !===========================================================================
+#if MPIIO == 1
+    subroutine write_mpiio(data, xpos, ypos, zpos, myrank)
+      use params
+      implicit none
+      
+      include "mpif.h"
+      
+      integer :: xpos, ypos, zpos, myrank
+      real(8), dimension(xdim,ydim,zdim,nvar) :: data
+      integer, dimension(3) :: boxsize, domdecomp
+      character(LEN=13) :: filename
+
+      ! MPI variables
+      integer :: fhandle, ierr
+      integer :: int_size, double_size
+      integer(kind=MPI_OFFSET_KIND) :: buf_size
+      integer :: written_arr
+      integer, dimension(3) :: wa_size, wa_subsize, wa_start
+
+      ! Metadata definitions
+      boxsize   = (/ xdim, ydim, zdim /)
+      domdecomp = (/ nx, ny, nz /)
+
+      ! Create MPI array type
+      wa_size    = (/ nx*xdim, ny*ydim, nz*zdim /)
+      wa_subsize = (/ xdim, ydim, zdim /)
+      wa_start   = (/ xpos, ypos, zpos /)*wa_subsize
+      call MPI_Type_Create_Subarray(3, wa_size, wa_subsize, wa_start &
+           & , MPI_ORDER_FORTRAN, MPI_DOUBLE_PRECISION, written_arr, ierr)
+      call MPI_Type_Commit(written_arr, ierr)
+
+      call MPI_Type_Size(MPI_INTEGER, int_size, ierr)
+      call MPI_Type_Size(MPI_DOUBLE_PRECISION, double_size, ierr)
+         
+      filename = 'parallelio.mp'
+      ! if(myrank.eq.0) then
+      !    call MPI_File_Open(MPI_COMM_SELF, trim(filename), &
+      !         & MPI_MODE_CREATE + MPI_MODE_WRONLY, MPI_INFO_NULL, fhandle, ierr)
+      !    call MPI_File_Set_View(fhandle, 0, MPI_INTEGER, MPI_INTEGER, 'native' &
+      !         & , MPI_INFO_NULL, ierr)
+      !    call MPI_File_Write(fhandle, boxsize, 3, MPI_INTEGER &
+      !         & , MPI_INFO_NULL, ierr)
+      !    call MPI_File_Write(fhandle, domdecomp, 3, MPI_INTEGER &
+      !         & , MPI_INFO_NULL, ierr)
+      !    call MPI_File_Close(fhandle, ierr)
+      ! endif
+      ! call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+      call MPI_File_Open(MPI_COMM_WORLD, trim(filename) &
+           & , MPI_MODE_WRONLY + MPI_MODE_CREATE, MPI_INFO_NULL, fhandle, ierr)
+      ! buf_size = xdim*ydim*zdim*double_size*myrank
+      ! buf_size = xdim*ydim*zdim*double_size*myrank + 6*int_size
+      call MPI_File_Set_View(fhandle, 0, MPI_DOUBLE_PRECISION &
+           & , written_arr, 'native', MPI_INFO_NULL, ierr)
+      ! call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET)
+      call MPI_File_Write_All(fhandle, data(:,:,:,1), xdim*ydim*zdim &
+           & , MPI_DOUBLE_PRECISION, MPI_INFO_NULL, ierr)
+      call MPI_File_Close(fhandle, ierr)
+
+    end subroutine write_mpiio
 #endif
     !===========================================================================
     subroutine read_params
