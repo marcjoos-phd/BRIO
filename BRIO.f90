@@ -627,7 +627,7 @@ program BRIO
       
       include "mpif.h"
       
-      integer :: xpos, ypos, zpos, myrank
+      integer :: xpos, ypos, zpos, myrank, i
       real(8), dimension(xdim,ydim,zdim,nvar) :: data
       integer, dimension(3) :: boxsize, domdecomp
       character(LEN=13) :: filename
@@ -655,30 +655,36 @@ program BRIO
       call MPI_Type_Size(MPI_DOUBLE_PRECISION, double_size, ierr)
          
       filename = 'parallelio.mp'
-      ! if(myrank.eq.0) then
-      !    call MPI_File_Open(MPI_COMM_SELF, trim(filename), &
-      !         & MPI_MODE_CREATE + MPI_MODE_WRONLY, MPI_INFO_NULL, fhandle, ierr)
-      !    call MPI_File_Set_View(fhandle, 0, MPI_INTEGER, MPI_INTEGER, 'native' &
-      !         & , MPI_INFO_NULL, ierr)
-      !    call MPI_File_Write(fhandle, boxsize, 3, MPI_INTEGER &
-      !         & , MPI_INFO_NULL, ierr)
-      !    call MPI_File_Write(fhandle, domdecomp, 3, MPI_INTEGER &
-      !         & , MPI_INFO_NULL, ierr)
-      !    call MPI_File_Close(fhandle, ierr)
-      ! endif
-      ! call MPI_Barrier(MPI_COMM_WORLD, ierr)
+      ! Write metadata
+      if(myrank.eq.0) then
+         call MPI_File_Open(MPI_COMM_SELF, trim(filename), &
+              & MPI_MODE_CREATE + MPI_MODE_WRONLY, MPI_INFO_NULL, fhandle, ierr)
+         call MPI_File_Seek(fhandle, 0, MPI_SEEK_SET)
+         call MPI_File_Write(fhandle, boxsize, 3, MPI_INTEGER &
+              & , MPI_STATUS_IGNORE, ierr)
+         call MPI_File_Write(fhandle, domdecomp, 3, MPI_INTEGER &
+              & , MPI_STATUS_IGNORE, ierr)
+         call MPI_File_Close(fhandle, ierr)
+      endif
+      call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
+      ! Open file
       call MPI_File_Open(MPI_COMM_WORLD, trim(filename) &
            & , MPI_MODE_WRONLY + MPI_MODE_CREATE, MPI_INFO_NULL, fhandle, ierr)
-      ! buf_size = xdim*ydim*zdim*double_size*myrank
-      ! buf_size = xdim*ydim*zdim*double_size*myrank + 6*int_size
-      call MPI_File_Set_View(fhandle, 0, MPI_DOUBLE_PRECISION &
-           & , written_arr, 'native', MPI_INFO_NULL, ierr)
-      ! call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET)
-      call MPI_File_Write_All(fhandle, data(:,:,:,1), xdim*ydim*zdim &
-           & , MPI_DOUBLE_PRECISION, MPI_INFO_NULL, ierr)
+
+      ! Write data
+      do i = 1, 8
+         buf_size = 6*int_size + xdim*ydim*zdim*double_size*myrank &
+              & + (i-1)*xdim*ydim*zdim*nx*ny*nz*double_size
+         call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET)
+         call MPI_File_Write_All(fhandle, data(:,:,:,i), xdim*ydim*zdim &
+              & , MPI_DOUBLE_PRECISION, MPI_STATUS_IGNORE, ierr)
+      enddo
+
+      ! Close file
       call MPI_File_Close(fhandle, ierr)
 
+      return
     end subroutine write_mpiio
 #endif
     !===========================================================================
