@@ -4,7 +4,7 @@ program BRIO
   !=============================================================================
   ! Author: Marc B.R. Joos
   !
-  ! Created/last modified: jun 26, 2013/jul 24, 2013
+  ! Created/last modified: jun 26, 2013/aug 21, 2013
   !
   ! This file is distributed under GNU/GPL licence, 
   ! see <http://www.gnu.org/licenses/>.

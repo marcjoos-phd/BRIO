@@ -1,0 +1,124 @@
+%===============================================================================
+%======================== Benchmark for paRallel I/O ===========================
+%===============================================================================
+% Author: Marc B.R. Joos
+%
+% Created/last modified: aug 21, 2013/aug 21, 2013
+%
+% This file is distributed under GNU/GPL licence, 
+% see <http://www.gnu.org/licenses/>.
+%===============================================================================
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\IfFileExists{libertine.sty}{
+\usepackage{libertine}
+}{\typeout{> Libertine not available! Use Times instead.}
+\usepackage[varg]{txfonts}}
+
+\author{Marc B.R. \textsc{Joos} \\ {\small Service d'Astrophysique, IRFU, DSM, CEA-Saclay, France}}
+\title{BRIO \\ \textsc{Benchmark for paRallel I/O}}
+\date{ }
+
+%% Redefine page layout
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 9.5in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+%% Change section, subsection etc. layout
+\makeatletter
+\renewcommand{\section}{\@startsection {section}{1}{\z@}%
+             {-3.5ex \@plus -1ex \@minus -.2ex}%
+             {2.3ex \@plus .2ex}%
+             {\normalfont\Large\sffamily\bfseries}}
+
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}%
+             {-3.25ex\@plus -1ex \@minus -.2ex}%
+             {1.5ex \@plus .2ex}%
+             {\normalfont\large\sffamily\bfseries}}
+
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{2}{\z@}%
+             {-3.25ex\@plus -1ex \@minus -.2ex}%
+             {1.5ex \@plus .2ex}%
+             {\normalfont\normalsize\sffamily\bfseries}}
+\makeatother
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+\textsc{Brio} is a benchmark for parallel Input/Output, using different I/O strategies commonly used in the scientific world. It is simple to use to benchmark I/O performance in your favorite architecture.
+
+As for now, this benchmark has been successfully tried on x86 architectures with gfortran and Intel Fortran compiler and on BlueGene/Q architecture with IBM Fortran compiler.
+
+This benchmark follows the way I/O are performed in the fixed grid version of the publicly available \textsc{Ramses} code\footnote{the code can be downloaded at \texttt{https://bitbucket.org/rteyssie/ramses}; its usage is free for non-commercial use only} (Teyssier 2002, Fromang \emph{et al.} 2006; \textsc{Ramses} is an adaptive mesh refinement, (magneto-)hydrodynamics code widely used in the astrophysics community).
+
+\section{I/O strategies}
+
+Five different I/O strategies can be tested with this benchmark:
+\begin{itemize}
+  \item The sequential, binary POSIX I/O;
+  \item The Parallel NetCDF library;
+  \item The Parallel HDF5 library;
+  \item The ADIOS library;
+  \item The MPI-IO library.
+\end{itemize}
+
+\subsection{sequential POSIX I/O}
+
+This is the classical, sequential I/O strategy. Data are written in unformatted binary Fortran. Note that this format is poorly portable. It is usually the most efficient strategy, even though it can be very bad on massively parallel computers.
+
+\subsection{Parallel NetCDF}
+
+This strategy uses the Paralel NetCDF library, which is based on the Network Common Data Form (NetCDF) library. It is a self-documented format, portable across platforms. It allows to perform high performance parallel I/O.
+
+\subsection{Parallel HDF5}
+
+This strategy uses the Parallel HDF5 library, which is the parallel version of the Hierarchical Data Format (HDF5). It is a self-documented, hierarchical, filesystem-like data format. It is portable across platforms. It allows to perform high performance parallel I/O.
+
+\subsection{ADIOS}
+
+This strategy uses the Adaptable I/O System (ADIOS), a versatile, simple and flexible library which can rely on MPI-IO, HDF5 or NetCDF4. In the current implementation of \textsc{Brio}, you can choose between the ``XML'' and ``noXML'' version of ADIOS; either the declarations and definitions are provided in an XML file (which is provided in the current distribution of \textsc{Brio}), either everything is hard-coded. 
+
+\subsection{MPI-IO}
+
+This strategy uses MPI-IO, the MPI library for parallel I/O. This is highly \textbf{not} portable, producing binary files which cannot be read from one platform to the other. This is an efficient strategy however, all the other libraries being build on top of MPI-IO, adding some overheads.
+
+\section{Compiling the code}
+
+The \textsc{Brio} code is provided with a Makefile in which three environment variables can be defined:
+\begin{itemize}
+  \item \texttt{INTERACTIVE}: to choose between the namelist interface (0) and the interactive interface (1);
+  \item \texttt{IOTYPE}: to choose the I/O strategy. \texttt{IOTYPE} must take one of the following values: \texttt{POSIX}, \texttt{PNCDF}, \texttt{PHDF5}, \texttt{ADIOS}, \texttt{MPIIO}, \texttt{ALL};
+  \item \texttt{ARCH}: to choose the architecture (compiler, library paths etc.).
+\end{itemize}
+
+\section{Executing the code}
+
+Some parameters can be modified at runtime, either interactively or through a namelist interface. The parameters that can be modified are:
+\begin{itemize}
+  \item \texttt{xdim}, \texttt{ydim}, \texttt{zdim}: the dimensions of the local grid;
+  \item \texttt{nx}, \texttt{ny}, \texttt{nz}: the domain decomposition, \texttt{nx} standing for the number of MPI process in the $x$-direction;
+  \item \texttt{inline}: if \texttt{.false.}, the data cubes are written ``as is'', meaning in a highly non-contiguous way. If \texttt{.true.}; they are written along the $z$-direction, in a more contiguous way, improving I/O performance;
+  \item \texttt{xml}: use only with ADIOS; if \texttt{.true.}, it will use the XML interface of ADIOS, else, it will use the noXML API.
+\end{itemize}
+
+These parameters can be modify either through the namelist \texttt{input\_BRIO}, if \texttt{INTERACTIVE} is 0 in the Makefile, either through command line options (that follow the syntax \texttt{-[name of the parameter]}; for example \texttt{-nx} for \texttt{nx} parameter).
+
+\section{License}
+
+This code is distributed under the GNU General Public License (GNU/GPL). 
+
+See \texttt{http://www.gnu.org/licenses/} for more details about it.
+
+\end{document}
