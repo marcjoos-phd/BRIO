@@ -3,7 +3,7 @@
 #===============================================================================
 # Author: Marc B.R. Joos
 #
-# Created/last modified: jun 26, 2013/jul 19, 2013
+# Created/last modified: jun 26, 2013/sep 10, 2013
 #
 # This file is distributed under GNU/GPL licence, 
 # see <http://www.gnu.org/licenses/>.
@@ -11,13 +11,22 @@
 # Define your environment & preprocessor options
 # IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, MPIIO, ALL)
 INTERACTIVE=0
-IOTYPE=ALL
+IOTYPE=POTOK
 ARCH=LOCAL
 
 # IOTYPE definitions
 #===============================================================================
 ifeq ($(IOTYPE),POSIX)
 POSIX=1
+POTOK=0
+PNCDF=0
+PHDF5=0
+ADIOS=0
+MPIIO=0
+endif
+ifeq ($(IOTYPE),POTOK)
+POSIX=0
+POTOK=1
 PNCDF=0
 PHDF5=0
 ADIOS=0
@@ -25,6 +34,7 @@ MPIIO=0
 endif
 ifeq ($(IOTYPE),PNCDF)
 POSIX=0
+POTOK=0
 PNCDF=1
 PHDF5=0
 ADIOS=0
@@ -32,6 +42,7 @@ MPIIO=0
 endif
 ifeq ($(IOTYPE),PHDF5)
 POSIX=0
+POTOK=0
 PNCDF=0
 PHDF5=1
 ADIOS=0
@@ -39,6 +50,7 @@ MPIIO=0
 endif
 ifeq ($(IOTYPE),ADIOS)
 POSIX=0
+POTOK=0
 PNCDF=0
 PHDF5=0
 ADIOS=1
@@ -46,6 +58,7 @@ MPIIO=0
 endif
 ifeq ($(IOTYPE),MPIIO)
 POSIX=0
+POTOK=0
 PNCDF=0
 PHDF5=0
 ADIOS=0
@@ -53,6 +66,7 @@ MPIIO=1
 endif
 ifeq ($(IOTYPE),ALL)
 POSIX=1
+POTOK=0
 PNCDF=1
 PHDF5=1
 ADIOS=1
@@ -64,7 +78,7 @@ endif
 #===============================================================================
 F90_LOCAL      = mpif90 # gfortran
 FFLAGS_LOCAL   = -O3 -backtrace
-CPPFLAGS_LOCAL = -x f95-cpp-input -DINTERACTIVE=$(INTERACTIVE) -DPOSIX=$(POSIX) -DPNCDF=$(PNCDF) -DPHDF5=$(PHDF5) -DADIOS=$(ADIOS) -DMPIIO=$(MPIIO)
+CPPFLAGS_LOCAL = -x f95-cpp-input -DINTERACTIVE=$(INTERACTIVE) -DPOSIX=$(POSIX) -DPOTOK=$(POTOK) -DPNCDF=$(PNCDF) -DPHDF5=$(PHDF5) -DADIOS=$(ADIOS) -DMPIIO=$(MPIIO)
 MPIINC_LOCAL   = # -I/local/home/mjoos/soft/build/include/ 
 MPILIB_LOCAL   = # -L/local/home/mjoos/soft/build/lib -lmpi -lmpi_f77
 HDFINC_LOCAL   = -I/local/home/mjoos/soft/hdf5-para/include/ 
@@ -77,7 +91,7 @@ ADIOS_LOCAL    = /local/home/mjoos/soft/build
 #============================================================================
 F90_TURING      = mpixlf90_r
 FFLAGS_TURING   = -O3
-CPPFLAGS_TURING = -qsuffix=cpp=f90 -WF,-DINTERACTIVE=$(INTERACTIVE),-DPOSIX=$(POSIX),-DPNCDF=$(PNCDF),-DPHDF5=$(PHDF5),-DADIOS=$(ADIOS)
+CPPFLAGS_TURING = -qsuffix=cpp=f90 -WF,-DINTERACTIVE=$(INTERACTIVE),-DPOSIX=$(POSIX),-DPOTOK=$(POTOK),-DPNCDF=$(PNCDF),-DPHDF5=$(PHDF5),-DADIOS=$(ADIOS),-DMPIIO=$(MPIIO)
 MPIINC_TURING   =
 MPILIB_TURING   =
 HDFINC_TURING   = -I/bglocal/cn/pub/HDF5/1.8.9/par/include/
@@ -101,7 +115,7 @@ ADIOSDIR = $(ADIOS_$(ARCH))
 ADIOSINC = $(shell ${ADIOSDIR}/bin/adios_config -c -f)
 ADIOSLIB = $(shell ${ADIOSDIR}/bin/adios_config -l -f)
 
-MODOBJ = commons.o
+MODOBJ = commons.o writeIO.o readIO.o
 BRIOBJ = BRIO.o
 ALLOBJ = $(MODOBJ) $(BRIOBJ)
 
@@ -120,6 +134,9 @@ BRIO: $(ALLOBJ)
 	@echo "With: "
 ifeq ($(IOTYPE),POSIX)
 	@echo " - Sequential POSIX I/O"
+endif
+ifeq ($(IOTYPE),POTOK)
+	@echo " - Sequential POSIX I/O with token management"
 endif
 ifeq ($(IOTYPE),PNCDF)
 	@echo " - Parallel NetCDF I/O"
@@ -151,5 +168,4 @@ endif
 all: BRIO
 #============================================================================
 clean:
-	rm *.o *.mod *.h5 *.nc *.bp *.fh *.mp
-	rm -rf sequentialio/
+	rm -rf *.o *.mod *.h5 *.nc *.bp *.fh *.mp sequentialio/
