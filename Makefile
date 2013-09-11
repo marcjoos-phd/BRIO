@@ -11,7 +11,7 @@
 # Define your environment & preprocessor options
 # IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, MPIIO, ALL)
 INTERACTIVE=0
-IOTYPE=POTOK
+IOTYPE=ADIOS
 ARCH=LOCAL
 
 # IOTYPE definitions

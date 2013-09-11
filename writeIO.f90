@@ -485,7 +485,7 @@ contains
     call ADIOS_Open(adios_handle, "dump", "parallelio_XML.bp", "w" &
          & , MPI_COMM_WORLD, ierr)
     ! Write I/O
-  #include "gwrite_dump.fh"
+#include "gwrite_dump.fh"
   
     ! Close ADIOS file and interface
     call ADIOS_Close(adios_handle, ierr)

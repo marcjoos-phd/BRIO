@@ -251,4 +251,103 @@ contains
   end subroutine read_dataset_h5
 #endif
 !===============================================================================
+#if ADIOS == 1
+  subroutine read_adios(data, xpos, ypos, zpos, myrank)
+    use adios_read_mod
+    use params
+    implicit none
+    
+    include "mpif.h"
+    
+    integer :: xpos, ypos, zpos, myrank
+    real(8), dimension(xdim,ydim,zdim,nvar) :: data
+    integer, dimension(3) :: boxsize, domdecomp
+    character(LEN=17) :: filename
+    integer :: i
+
+    ! MPI & ADIOS variables
+    integer(8) :: adios_handle, sel
+    integer :: var_count, att_count, gr_count, tfirst, tlast
+    integer :: vtype, vstep, vrank
+    integer(8) :: offset_x, offset_y, offset_z
+    integer(8), dimension(3) :: dims, start, count
+    integer :: totalsize
+    character(LEN=64), allocatable, dimension(:) :: vnames, anames, gnames
+    integer :: ierr
+
+    if(xml) then
+       filename = "parallelio_XML.bp"
+    else
+       filename = "parallelio_noXML.bp"
+    endif
+
+    call adios_read_init_method(ADIOS_READ_METHOD_BP, MPI_COMM_WORLD &
+         , "verbose=1", ierr)
+    call adios_read_open_file(adios_handle, filename, 0, MPI_COMM_WORLD, ierr)
+    call adios_inq_file(adios_handle, var_count, att_count, tfirst, tlast, ierr)
+
+    allocate(vnames(var_count), anames(att_count))
+    call adios_inq_varnames(adios_handle, vnames, ierr)
+    call adios_inq_attrnames(adios_handle, anames, ierr)
+
+    call adios_inq_ngroups(adios_handle, gr_count, ierr)
+    allocate(gnames(gr_count))
+    call adios_inq_groupnames(adios_handle, gnames, ierr)
+
+    do i = 1, var_count
+       call adios_inq_var(adios_handle, vnames(i), vtype, vstep, vrank, dims &
+            , ierr)
+       if(vrank .eq. 0) then
+          if(vnames(i) .eq. "xdim") call adios_get_scalar(adios_handle &
+               , vnames(i), xdim, ierr)
+          if(vnames(i) .eq. "ydim") call adios_get_scalar(adios_handle &
+               , vnames(i), ydim, ierr)
+          if(vnames(i) .eq. "zdim") call adios_get_scalar(adios_handle &
+               , vnames(i), zdim, ierr)
+       endif
+    enddo
+
+    if(inline) then
+       offset_x = 0
+       offset_y = 0
+       offset_z = zdim*myrank
+    else
+       offset_x = xdim*xpos
+       offset_y = ydim*ypos
+       offset_z = zdim*zpos
+    endif
+    start = (/ offset_x, offset_y, offset_z /)
+    count = (/ xdim, ydim, zdim /)
+
+    do i = 1, var_count
+       call adios_inq_var(adios_handle, vnames(i), vtype, vstep, vrank, dims &
+            , ierr)
+       if(vrank .eq. 3) then
+          call adios_selection_boundingbox(sel, vrank, start, count)
+          if(vnames(i) .eq. "var1") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,1), ierr)
+          if(vnames(i) .eq. "var2") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,2), ierr)
+          if(vnames(i) .eq. "var3") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,3), ierr)
+          if(vnames(i) .eq. "var4") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,4), ierr)
+          if(vnames(i) .eq. "var5") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,5), ierr)
+          if(vnames(i) .eq. "var6") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,6), ierr)
+          if(vnames(i) .eq. "var7") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,7), ierr)
+          if(vnames(i) .eq. "var8") call adios_schedule_read(adios_handle, sel &
+               , vnames(i), 0, 1, data(:,:,:,8), ierr)
+          call adios_perform_reads(adios_handle, ierr)
+       endif
+    enddo
+
+    call adios_read_close(adios_handle, ierr)
+
+    return
+  end subroutine read_adios
+#endif
+!===============================================================================
 end module readIO
