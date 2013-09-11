@@ -14,9 +14,8 @@ program BRIO
   use params
   use writeIO
   use readIO
+  use mpi
   implicit none
-
-  include "mpif.h"
 
   integer :: nproc, myrank
   integer :: tag, first, last

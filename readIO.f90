@@ -4,7 +4,7 @@ module readIO
   !=============================================================================
   ! Author: Marc B.R. Joos
   !
-  ! Created/last modified: sep 10, 2013/sep 10, 2013
+  ! Created/last modified: sep 10, 2013/sep 11, 2013
   !
   ! This file is distributed under GNU/GPL licence, 
   ! see <http://www.gnu.org/licenses/>.
@@ -39,9 +39,8 @@ contains
   subroutine read_pncdf(data, xpos, ypos, zpos, myrank)
     use pnetcdf
     use params
+    use mpi
     implicit none
-
-    include "mpif.h"
 
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -122,9 +121,8 @@ contains
   subroutine read_phdf5(data, xpos, ypos, zpos, myrank)
     use hdf5
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -255,9 +253,8 @@ contains
   subroutine read_adios(data, xpos, ypos, zpos, myrank)
     use adios_read_mod
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data

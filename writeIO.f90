@@ -42,9 +42,8 @@ contains
   subroutine write_pncdf(data, xpos, ypos, zpos, myrank)
     use pnetcdf
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -151,9 +150,8 @@ contains
   subroutine write_phdf5(data, xpos, ypos, zpos, myrank)
     use hdf5
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -303,9 +301,8 @@ contains
   subroutine write_adios_noXML(data, xpos, ypos, zpos, myrank)
     use adios_write_mod
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -443,9 +440,8 @@ contains
   subroutine write_adios_XML(data, xpos, ypos, zpos, myrank)
     use adios_write_mod
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -498,9 +494,8 @@ contains
 #if MPIIO == 1
   subroutine write_mpiio(data, xpos, ypos, zpos, myrank)
     use params
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: xpos, ypos, zpos, myrank, i
     real(8), dimension(xdim,ydim,zdim,nvar) :: data
@@ -534,7 +529,8 @@ contains
     if(myrank.eq.0) then
        call MPI_File_Open(MPI_COMM_SELF, trim(filename), &
             & MPI_MODE_CREATE + MPI_MODE_WRONLY, MPI_INFO_NULL, fhandle, ierr)
-       call MPI_File_Seek(fhandle, 0, MPI_SEEK_SET)
+       buf_size = 0
+       call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET, ierr)
        call MPI_File_Write(fhandle, boxsize, 3, MPI_INTEGER &
             & , MPI_STATUS_IGNORE, ierr)
        call MPI_File_Write(fhandle, domdecomp, 3, MPI_INTEGER &
@@ -551,7 +547,7 @@ contains
     do i = 1, 8
        buf_size = 6*int_size + xdim*ydim*zdim*double_size*myrank &
             & + (i-1)*xdim*ydim*zdim*nx*ny*nz*double_size
-       call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET)
+       call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET, ierr)
        call MPI_File_Write_All(fhandle, data(:,:,:,i), xdim*ydim*zdim &
             & , MPI_DOUBLE_PRECISION, MPI_STATUS_IGNORE, ierr)
     enddo
@@ -564,9 +560,8 @@ contains
 #endif
 !===============================================================================
   subroutine create_dir(myrank)
+    use mpi
     implicit none
-    
-    include "mpif.h"
     
     integer :: myrank
     character(LEN=80) :: filedir, filecmd

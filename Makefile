@@ -11,7 +11,7 @@
 # Define your environment & preprocessor options
 # IOTYPE is in (POSIX, PNCDF, PHDF5, ADIOS, MPIIO, ALL)
 INTERACTIVE=0
-IOTYPE=ADIOS
+IOTYPE=ALL
 ARCH=LOCAL
 
 # IOTYPE definitions
@@ -66,7 +66,7 @@ MPIIO=1
 endif
 ifeq ($(IOTYPE),ALL)
 POSIX=1
-POTOK=0
+POTOK=1
 PNCDF=1
 PHDF5=1
 ADIOS=1
