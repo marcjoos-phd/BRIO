@@ -347,4 +347,51 @@ contains
   end subroutine read_adios
 #endif
 !===============================================================================
+#if MPIIO == 1
+  subroutine read_mpiio(data, xpos, ypos, zpos, myrank)
+    use params
+    use mpi
+    implicit none
+    
+    integer :: xpos, ypos, zpos, myrank, i
+    real(8), dimension(xdim,ydim,zdim,nvar) :: data
+    integer, dimension(3) :: boxsize, domdecomp
+    character(LEN=13) :: filename
+  
+    ! MPI variables
+    integer :: fhandle, ierr
+    integer :: int_size, double_size
+    integer(kind=MPI_OFFSET_KIND) :: buf_size
+    integer :: written_arr
+    integer, dimension(3) :: wa_size, wa_subsize, wa_start
+
+    filename = "parallelio.mp"
+    
+    ! Read metadata
+    call MPI_File_Open(MPI_COMM_SELF, trim(filename) &
+         , MPI_MODE_RDONLY, MPI_INFO_NULL, fhandle, ierr)
+    buf_size = 0
+    call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET, ierr)
+    call MPI_File_Read_All(fhandle, boxsize, 3, MPI_INTEGER &
+         , MPI_STATUS_IGNORE, ierr)
+    call MPI_File_Read_All(fhandle, domdecomp, 3, MPI_INTEGER &
+         , MPI_STATUS_IGNORE, ierr)
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+    
+    ! Read data
+    do i = 1, 8
+       buf_size = 6*int_size + xdim*ydim*zdim*double_size*myrank &
+            & + (i-1)*xdim*ydim*zdim*nx*ny*nz*double_size
+       call MPI_File_Seek(fhandle, buf_size, MPI_SEEK_SET, ierr)
+       call MPI_File_Read_All(fhandle, data(:,:,:,i), xdim*ydim*zdim &
+            & , MPI_DOUBLE_PRECISION, MPI_STATUS_IGNORE, ierr)
+    enddo
+  
+    ! Close file
+    call MPI_File_Close(fhandle, ierr)
+
+    return
+  end subroutine read_mpiio
+#endif
+!===============================================================================
 end module readIO

@@ -76,7 +76,7 @@ Five different I/O strategies can be tested with this benchmark:
 
 \subsection{sequential POSIX I/O}
 
-This is the classical, sequential I/O strategy. Data are written in unformatted binary Fortran. Note that this format is poorly portable. It is usually the most efficient strategy, even though it can be very bad on massively parallel computers.
+This is the classical, sequential I/O strategy. Data are written in unformatted binary Fortran. Note that this format is poorly portable. It is usually the most efficient strategy, even though it can be very bad on massively parallel computers. In addition, it is possible to use sequential I/O with a token management, to avoid to saturate the filesystem.
 
 \subsection{Parallel NetCDF}
 
@@ -99,7 +99,16 @@ This strategy uses MPI-IO, the MPI library for parallel I/O. This is highly \tex
 The \textsc{Brio} code is provided with a Makefile in which three environment variables can be defined:
 \begin{itemize}
   \item \texttt{INTERACTIVE}: to choose between the namelist interface (0) and the interactive interface (1);
-  \item \texttt{IOTYPE}: to choose the I/O strategy. \texttt{IOTYPE} must take one of the following values: \texttt{POSIX}, \texttt{PNCDF}, \texttt{PHDF5}, \texttt{ADIOS}, \texttt{MPIIO}, \texttt{ALL};
+  \item \texttt{IOTYPE}: to choose the I/O strategy. \texttt{IOTYPE} must take one of the following values: 
+    \begin{itemize}
+      \item \texttt{POSIX}: sequential POSIX I/O; 
+      \item \texttt{POTOK}: sequential POSIX I/O with token management; 
+      \item \texttt{PNCDF}: Parallel NetCDF library;
+      \item \texttt{PHDF5}: Parallel HDF5 library;
+      \item \texttt{ADIOS}: ADIOS library;
+      \item \texttt{MPIIO}: MPI-IO library;
+      \item \texttt{ALL}: to test all strategies;
+    \end{itemize}
   \item \texttt{ARCH}: to choose the architecture (compiler, library paths etc.).
 \end{itemize}
 

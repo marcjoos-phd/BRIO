@@ -202,6 +202,7 @@ program BRIO
      if(myrank==0) write(*,*) 'ADIOS-noXML > writing speed: ' &
        , totalsize/(tend_ad - tbegin_ad)/1024**2, 'MiB/s'  
   endif
+  call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
   tbegin_ad = MPI_Wtime()
   call read_adios(data, xpos, ypos, zpos, myrank)
@@ -216,6 +217,14 @@ program BRIO
   call MPI_Barrier(MPI_COMM_WORLD, ierr)
   tend_mp = MPI_Wtime()
   if(myrank==0) write(*,*) 'MPI-IO > writing speed: ' &
+       , totalsize/(tend_mp - tbegin_mp)/1024**2, 'MiB/s'  
+  call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+  tbegin_mp = MPI_Wtime()
+  call read_mpiio(data, xpos, ypos, zpos, myrank)
+  call MPI_Barrier(MPI_COMM_WORLD, ierr)
+  tend_mp = MPI_Wtime()
+  if(myrank==0) write(*,*) 'MPI-IO > reading speed: ' &
        , totalsize/(tend_mp - tbegin_mp)/1024**2, 'MiB/s'  
 #endif
 
