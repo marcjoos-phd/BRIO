@@ -1,0 +1,25 @@
+#===============================================================================
+#======================== Benchmark for paRallel I/O ===========================
+#===============================================================================
+# Author: Marc B.R. Joos
+#
+# Created/last modified: sep 16, 2013/sep 16, 2013
+#
+# This file is distributed under GNU/GPL licence, 
+# see <http://www.gnu.org/licenses/>.
+#===============================================================================
+
+This is BRIO, a Benchmark for paRallel I/O.
+
+COMPILATION
+-----------
+1. Edit Makefile to specify your favorite compiler and the path of your libraries
+2. make
+
+DOCUMENTATION
+-------------
+You will find more info on doc/BRIO.pdf
+
+LICENSE
+-------
+This software is distributed under the GNU/GPL license.
