@@ -3,9 +3,9 @@
 #===============================================================================
 # Author: Marc B.R. Joos
 #
-# Created/last modified: sep 16, 2013/sep 16, 2013
+# Created/last modified: sep 16, 2013/oct 24, 2013
 #
-# This file is distributed under GNU/GPL licence, 
+# This file is distributed under GNU/GPL license, 
 # see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
@@ -13,8 +13,25 @@ This is BRIO, a Benchmark for paRallel I/O.
 
 COMPILATION
 -----------
-1. Edit Makefile to specify your favorite compiler and the path of your libraries
+1. Run ./configure script to automatically generate a Makefile.
 2. make
+3. That's all.
+
+
+CONFIGURATION
+-------------
+
+configure script can be used as follow:
+
+ ./configure [-h|--help] [-i|--interactive] [-m|--with-mpi[=]<value>] [-H|--with-phdf5[=]<value>] [-c|--with-pnetcdf[=]<value>] [-a|--with-adios[=]<value>]
+ 
+ -h, --help			 print this help
+ -i, --interactive 		 to activate the interactive interface of BRIO
+ -m, --with-mpi=<MPIDIR> 	 to specify MPI library directory
+ -H, --with-phdf5=<HDFDIR> 	 to specify Parallel HDF5 library directory
+ -c, --with-pnetcdf=<CDFDIR> 	 to specify Parallel NetCDF library directory
+ -a, --with-adios=<ADIDIR> 	 to specify ADIOS library directory
+
 
 DOCUMENTATION
 -------------

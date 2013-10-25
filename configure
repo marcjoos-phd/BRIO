@@ -1,0 +1,245 @@
+#!/bin/bash
+
+usage="Usage:\n
+\t ./configure [-h|--help] [-i|--interactive] [-m|--with-mpi[=]<value>] [-H|--with-phdf5[=]<value>] [-c|--with-pnetcdf[=]<value>] [-a|--with-adios[=]<value>]\n
+\n
+-h, --help              \t\t\t print this help\n
+-i, --interactive         \t\t to activate the interactive interface of BRIO\n
+-m, --with-mpi=<MPIDIR>     \t to specify MPI library directory\n
+-H, --with-phdf5=<HDFDIR>   \t to specify Parallel HDF5 library directory\n
+-c, --with-pnetcdf=<CDFDIR> \t to specify Parallel NetCDF library directory\n
+-a, --with-adios=<ADIDIR>   \t to specify ADIOS library directory
+"
+
+INTERACTIVE=0
+# Get optional arguments from command line
+while getopts ":him:H:c:a:-:" opt; do
+    case $opt in
+	h)
+	    echo -e $usage
+	    exit 1
+	    ;;
+	i)
+	    INTERACTIVE=1
+	    ;;
+	m)
+	    MPI=${OPTARG}
+	    ;;
+	H)
+	    HDF=${OPTARG}
+	    ;;
+	c)
+	    CDF=${OPTARG}
+	    ;;
+	a)
+	    ADI=${OPTARG}
+	    ;;
+	-)
+	    case "${OPTARG}" in
+		help)
+		    echo -e $usage
+		    exit 1
+		    ;;
+		interactive)
+		    INTERACTIVE=1
+		    ;;
+		with-mpi=*)
+		    MPI=${OPTARG#*=}
+		    # opt=${OPTARG%=$val}
+		    ;;
+		with-mpi)
+		    MPI=${!OPTIND}
+		    OPTIND=$(( $OPTIND + 1 ))
+		    ;;
+		with-phdf5=*)
+		    HDF=${OPTARG#*=}
+		    ;;
+		with-phdf5)
+		    HDF=${!OPTIND}
+		    OPTIND=$(( $OPTIND + 1 ))
+		    ;;
+		with-pnetcdf=*)
+		    CDF=${OPTARG#*=}
+		    ;;
+		with-pnetcdf)
+		    CDF=${!OPTIND}
+		    OPTIND=$(( $OPTIND + 1 ))
+		    ;;
+		with-adios=*)
+		    ADI=${OPTARG#*=}
+		    ;;
+		with-adios)
+		    ADI=${!OPTIND}
+		    OPTIND=$(( $OPTIND + 1 ))
+		    ;;
+		*)
+                    if [ "$OPTERR" = 1 ] && [ "${optspec:0:1}" != ":" ]; then
+                        echo "Unknown option --${OPTARG}" >&2
+                    fi
+                    ;;
+	    esac;;
+	*)
+            if [ "$OPTERR" = 1 ] || [ "${optspec:0:1}" != ":" ]; then
+                echo "Unknown option -${OPTARG}" >&2
+            fi
+            ;;
+    esac
+done
+
+# Retrieve libraries path and set variables for the Makefile
+POSIX=1; POTOK=1; PNCDF=0; PHDF5=0; ADIOS=0; MPIIO=1
+echo "     Running configure script for BRIO benchmark"
+echo " "
+echo "Preparing compilation with: "
+if [ -z $MPI ]; then
+    MPIDIR=$(which mpif90)
+    if [ -z $MPIDIR ]; then
+	echo "ERROR: MPI not found; exiting..."
+	exit 1
+    else
+	MPIDIR=${MPIDIR%/*/*}
+    fi
+else
+    MPIDIR=$MPI
+fi
+echo "> MPI library located at: "$MPIDIR
+if [ -z $HDF ]; then
+    HDFDIR=$(which h5dump)
+    if [ -z $HDFDIR ]; then
+	echo "> without parallel HDF5 library"
+    else
+	HDFDIR=${HDFDIR%/*/*}
+	PHDF5=1
+    fi
+else
+    HDFDIR=$HDF
+    PHDF5=1
+fi
+if [ $PHDF5 -eq 1 ]; then
+    echo "> parallel HDF5 library located at: "$HDFDIR
+fi
+if [ -z $CDF ]; then
+    CDFDIR=$(which ncmpidump)
+    if [ -z $CDFDIR ]; then
+	echo "> without parallel NetCDF library"
+    else
+	CDFDIR=${CDFDIR%/*/*}
+	PNCDF=1
+    fi
+else
+    CDFDIR=$CDF
+    PNCDF=1
+fi
+if [ $PNCDF -eq 1 ]; then
+    echo "> parallel NetCDF library located at: "$CDFDIR
+fi
+if [ -z $ADI ]; then
+    ADIDIR=$(which adios_config)
+    if [ -z $ADIDIR ]; then
+	echo "> without ADIOS library"
+    else
+	ADIDIR=${ADIDIR%/*/*}
+	ADIOS=1
+    fi
+else
+    ADIDIR=$ADI
+    ADIOS=1
+fi
+if [ $ADIOS -eq 1 ]; then
+    echo "> ADIOS library located at: "$CDFDIR
+fi
+if [ $INTERACTIVE -eq 1 ]; then
+    echo "> an interactive interface"
+else
+    echo "> the namelist interface"
+fi
+
+# Check the compiler version to set the proper flags
+FCCOMPILER=($(mpif90 -show | tr ' ' ' '))
+FCCOMPILER=${FCCOMPILER[0]}
+if [ $FCCOMPILER = "gfortran" ]; then
+    FFLAGS="-O3 -fbacktrace -g -ffree-line-length-0"
+    CPPFLAGS="-x f95-cpp-input"
+fi
+if [ $FCCOMPILER = "ifort" ]; then
+    FFLAGS="-O3 -traceback -g"
+    CPPFLAGS="-fpp"
+fi
+CPPFLAGS=$CPPFLAGS" -DINTERACTIVE=\$(INTERACTIVE) -DPOSIX=\$(POSIX) -DPOTOK=\$(POTOK) -DPNCDF=\$(PNCDF) -DPHDF5=\$(PHDF5) -DADIOS=\$(ADIOS) -DMPIIO=\$(MPIIO)"
+
+# Write the Makefile
+cat > Makefile <<EOF
+INTERACTIVE=${INTERACTIVE}
+POSIX=${POSIX}
+POTOK=${POTOK}
+PNCDF=${PNCDF}
+PHDF5=${PHDF5}
+ADIOS=${ADIOS}
+MPIIO=${MPIIO}
+
+F90      = mpif90
+FFLAGS   = ${FFLAGS}
+CPPFLAGS = ${CPPFLAGS} 
+HDFINC   = -I${HDFDIR}/include/
+HDFLIB   = -L${HDFDIR}/lib -lhdf5_fortran -lhdf5 -lz
+CDFINC   = -I${CDFDIR}/include/
+CDFLIB   = -L${CDFDIR}/lib -lpnetcdf
+ifeq (\$(ADIOS),1)
+ADIOSDIR = ${ADIDIR}
+ADIOSINC = \$(shell \${ADIOSDIR}/bin/adios_config -c -f)
+ADIOSLIB = \$(shell \${ADIOSDIR}/bin/adios_config -l -f)
+endif
+
+VPATH  = src:src/modules
+SRCOBJ = \$(wildcard src/modules/*f90)
+MODOBJ = \$(SRCOBJ:.f90=.o)
+BRIOBJ = BRIO.o
+ALLOBJ = \$(MODOBJ) \$(BRIOBJ)
+
+#============================================================================
+\$(info ======================== BRIO ==========================)
+\$(info ============= Benchmark for parallel I/O ===============)
+\$(info ========================================================)
+\$(info With: )
+ifeq (\$(POSIX),1)
+\$(info  - Sequential POSIX I/O)
+endif
+ifeq (\$(POTOK),1)
+\$(info  - Sequential POSIX I/O with token management)
+endif
+ifeq (\$(PNCDF),1)
+\$(info  - Parallel NetCDF I/O)
+endif
+ifeq (\$(PHDF5),1)
+\$(info  - Parallel HDF5 I/O)
+endif
+ifeq (\$(ADIOS),1)
+\$(info  - Adaptive I/O System)
+endif
+ifeq (\$(MPIIO),1)
+\$(info  - MPI-IO)
+endif
+\$(info ========================================================)
+\$(info  )
+#============================================================================
+%.o:%.f90
+$(echo -e "\t")\$(F90) \$(HDFINC) \$(CDFINC) \$(ADIOSINC) \$(FLAGS) \$(MPIINC) \$(CPPFLAGS) -c \$^ -o \$@
+#============================================================================
+BRIO: adios \$(ALLOBJ)
+$(echo -e "\t")\$(F90) \$(FLAGS) -o ./BRIO \$(ALLOBJ) \$(HDFLIB) \$(CDFLIB) \$(MPILIB) \$(ADIOSLIB)
+$(echo -e "\t")mv *o *mod BRIO bin/
+#============================================================================
+ifeq (\$(ADIOS),1)
+adios:
+$(echo -e "\t")gpp.py input/adios_BRIO.xml
+$(echo -e "\t")mv *fh src/modules/
+else
+adios:
+endif
+#============================================================================
+all: BRIO
+#============================================================================
+clean:
+$(echo -e "\t")rm -rf bin/*.o src/modules/*.o src/modules/*.fh bin/*.mod input/*.h5 input/*.nc input/*.bp input/*.mp input/sequentialio/
+
+EOF

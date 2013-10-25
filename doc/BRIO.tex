@@ -3,9 +3,9 @@
 %===============================================================================
 % Author: Marc B.R. Joos
 %
-% Created/last modified: aug 21, 2013/aug 21, 2013
+% Created/last modified: aug 21, 2013/oct 24, 2013
 %
-% This file is distributed under GNU/GPL licence, 
+% This file is distributed under GNU/GPL license, 
 % see <http://www.gnu.org/licenses/>.
 %===============================================================================
 \documentclass[a4paper,12pt]{article}
@@ -94,23 +94,21 @@ This strategy uses the Adaptable I/O System (ADIOS), a versatile, simple and fle
 
 This strategy uses MPI-IO, the MPI library for parallel I/O. This is highly \textbf{not} portable, producing binary files which cannot be read from one platform to the other. This is an efficient strategy however, all the other libraries being build on top of MPI-IO, adding some overheads.
 
-\section{Compiling the code}
+\section{Configuring and compiling the code}
 
-The \textsc{Brio} code is provided with a Makefile in which three environment variables can be defined:
-\begin{itemize}
-  \item \texttt{INTERACTIVE}: to choose between the namelist interface (0) and the interactive interface (1);
-  \item \texttt{IOTYPE}: to choose the I/O strategy. \texttt{IOTYPE} must take one of the following values: 
-    \begin{itemize}
-      \item \texttt{POSIX}: sequential POSIX I/O; 
-      \item \texttt{POTOK}: sequential POSIX I/O with token management; 
-      \item \texttt{PNCDF}: Parallel NetCDF library;
-      \item \texttt{PHDF5}: Parallel HDF5 library;
-      \item \texttt{ADIOS}: ADIOS library;
-      \item \texttt{MPIIO}: MPI-IO library;
-      \item \texttt{ALL}: to test all strategies;
-    \end{itemize}
-  \item \texttt{ARCH}: to choose the architecture (compiler, library paths etc.).
-\end{itemize}
+The \textsc{Brio} code is provided with a \texttt{configure} script to easily generate a Makefile. It checks the availability of the MPI library and the different I/O libraries tested in \textsc{Brio}. Be aware that, by default, it uses the \texttt{mpif90} wrapper to compile the code.
+
+You can specify the path of the different libraries using flags:
+\begin{table}[h!]
+  \begin{tabular}{l @{,\quad} l @{:\hspace{3em}} p{.5\textwidth}}
+    \texttt{-m} & \texttt{{-}{-}with-mpi} & to specify MPI library directory \\
+    \texttt{-H} & \texttt{{-}{-}with-phdf5} & to specify Parallel HDF5 library directory \\
+    \texttt{-c} & \texttt{{-}{-}with-pnetcdf} & to specify Parallel NetCDF library directory \\
+    \texttt{-a} & \texttt{{-}{-}with-adios} & to specify ADIOS library directory
+  \end{tabular}
+\end{table}
+
+In addition to this flags, there is also the \texttt{-i}, \texttt{{-}{-}interactive} flag to activate the interactive interface of \textsc{Brio}. When it is not set, it uses the namelist interface instead.
 
 \section{Executing the code}
 
@@ -118,6 +116,12 @@ Some parameters can be modified at runtime, either interactively or through a na
 \begin{itemize}
   \item \texttt{xdim}, \texttt{ydim}, \texttt{zdim}: the dimensions of the local grid;
   \item \texttt{nx}, \texttt{ny}, \texttt{nz}: the domain decomposition, \texttt{nx} standing for the number of MPI process in the $x$-direction;
+  \item \texttt{posix}: to use sequential POSIX I/O; 
+  \item \texttt{potok}: to use sequential POSIX I/O with token management; 
+  \item \texttt{pncdf}: to use Parallel NetCDF library;
+  \item \texttt{phdf5}: to use Parallel HDF5 library;
+  \item \texttt{adios}: to use ADIOS library;
+  \item \texttt{mpiio}: to use MPI-IO library;
   \item \texttt{inline}: if \texttt{.false.}, the data cubes are written ``as is'', meaning in a highly non-contiguous way. If \texttt{.true.}; they are written along the $z$-direction, in a more contiguous way, improving I/O performance;
   \item \texttt{xml}: use only with ADIOS; if \texttt{.true.}, it will use the XML interface of ADIOS, else, it will use the noXML API.
 \end{itemize}
