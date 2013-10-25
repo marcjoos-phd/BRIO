@@ -197,49 +197,52 @@ BRIOBJ = BRIO.o
 ALLOBJ = \$(MODOBJ) \$(BRIOBJ)
 
 #============================================================================
-\$(info ======================== BRIO ==========================)
-\$(info ============= Benchmark for parallel I/O ===============)
-\$(info ========================================================)
-\$(info With: )
+all: BRIO
+$(echo -e "\t")@echo "======================== BRIO =========================="
+$(echo -e "\t")@echo "============= Benchmark for parallel I/O ==============="
+$(echo -e "\t")@echo "========================================================"
+$(echo -e "\t")@echo "With: "
 ifeq (\$(POSIX),1)
-\$(info  - Sequential POSIX I/O)
+$(echo -e "\t")@echo " - Sequential POSIX I/O"
 endif
 ifeq (\$(POTOK),1)
-\$(info  - Sequential POSIX I/O with token management)
+$(echo -e "\t")@echo " - Sequential POSIX I/O with token management"
 endif
 ifeq (\$(PNCDF),1)
-\$(info  - Parallel NetCDF I/O)
+$(echo -e "\t")@echo " - Parallel NetCDF I/O"
 endif
 ifeq (\$(PHDF5),1)
-\$(info  - Parallel HDF5 I/O)
+$(echo -e "\t")@echo " - Parallel HDF5 I/O"
 endif
 ifeq (\$(ADIOS),1)
-\$(info  - Adaptive I/O System)
+$(echo -e "\t")@echo " - Adaptive I/O System"
 endif
 ifeq (\$(MPIIO),1)
-\$(info  - MPI-IO)
+$(echo -e "\t")@echo " - MPI-IO"
 endif
-\$(info ========================================================)
-\$(info  )
+$(echo -e "\t")@echo "========================================================"
+$(echo -e "\t")@echo " > compilation successful!"
 #============================================================================
 %.o:%.f90
+$(echo -e "\t")@echo " > Compiling object: "\$@
 $(echo -e "\t")\$(F90) \$(HDFINC) \$(CDFINC) \$(ADIOSINC) \$(FLAGS) \$(MPIINC) \$(CPPFLAGS) -c \$^ -o \$@
 #============================================================================
 BRIO: adios \$(ALLOBJ)
+$(echo -e "\t")@echo " > Compiling BRIO..."
 $(echo -e "\t")\$(F90) \$(FLAGS) -o ./BRIO \$(ALLOBJ) \$(HDFLIB) \$(CDFLIB) \$(MPILIB) \$(ADIOSLIB)
 $(echo -e "\t")mv *o *mod BRIO bin/
 #============================================================================
 ifeq (\$(ADIOS),1)
 adios:
+$(echo -e "\t")@echo " > Generating *.fh files..."
 $(echo -e "\t")gpp.py input/adios_BRIO.xml
 $(echo -e "\t")mv *fh src/modules/
 else
 adios:
 endif
 #============================================================================
-all: BRIO
-#============================================================================
 clean:
+$(echo -e "\t")@echo " > Cleaning sources and binaries directories..."
 $(echo -e "\t")rm -rf bin/*.o src/modules/*.o src/modules/*.fh bin/*.mod input/*.h5 input/*.nc input/*.bp input/*.mp input/sequentialio/
 
 EOF

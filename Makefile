@@ -1,4 +1,4 @@
-INTERACTIVE=1
+INTERACTIVE=0
 POSIX=1
 POTOK=1
 PNCDF=1
@@ -26,48 +26,51 @@ BRIOBJ = BRIO.o
 ALLOBJ = $(MODOBJ) $(BRIOBJ)
 
 #============================================================================
-$(info ======================== BRIO ==========================)
-$(info ============= Benchmark for parallel I/O ===============)
-$(info ========================================================)
-$(info With: )
+all: BRIO
+	@echo "======================== BRIO =========================="
+	@echo "============= Benchmark for parallel I/O ==============="
+	@echo "========================================================"
+	@echo "With: "
 ifeq ($(POSIX),1)
-$(info  - Sequential POSIX I/O)
+	@echo " - Sequential POSIX I/O"
 endif
 ifeq ($(POTOK),1)
-$(info  - Sequential POSIX I/O with token management)
+	@echo " - Sequential POSIX I/O with token management"
 endif
 ifeq ($(PNCDF),1)
-$(info  - Parallel NetCDF I/O)
+	@echo " - Parallel NetCDF I/O"
 endif
 ifeq ($(PHDF5),1)
-$(info  - Parallel HDF5 I/O)
+	@echo " - Parallel HDF5 I/O"
 endif
 ifeq ($(ADIOS),1)
-$(info  - Adaptive I/O System)
+	@echo " - Adaptive I/O System"
 endif
 ifeq ($(MPIIO),1)
-$(info  - MPI-IO)
+	@echo " - MPI-IO"
 endif
-$(info ========================================================)
-$(info  )
+	@echo "========================================================"
+	@echo " > compilation successful!"
 #============================================================================
 %.o:%.f90
+	@echo " > Compiling object: "$@
 	$(F90) $(HDFINC) $(CDFINC) $(ADIOSINC) $(FLAGS) $(MPIINC) $(CPPFLAGS) -c $^ -o $@
 #============================================================================
 BRIO: adios $(ALLOBJ)
+	@echo " > Compiling BRIO..."
 	$(F90) $(FLAGS) -o ./BRIO $(ALLOBJ) $(HDFLIB) $(CDFLIB) $(MPILIB) $(ADIOSLIB)
 	mv *o *mod BRIO bin/
 #============================================================================
 ifeq ($(ADIOS),1)
 adios:
+	@echo " > Generating *.fh files..."
 	gpp.py input/adios_BRIO.xml
 	mv *fh src/modules/
 else
 adios:
 endif
 #============================================================================
-all: BRIO
-#============================================================================
 clean:
+	@echo " > Cleaning sources and binaries directories..."
 	rm -rf bin/*.o src/modules/*.o src/modules/*.fh bin/*.mod input/*.h5 input/*.nc input/*.bp input/*.mp input/sequentialio/
 
