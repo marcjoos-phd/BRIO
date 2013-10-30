@@ -1,17 +1,27 @@
 #!/bin/bash
+#===============================================================================
+#======================== Benchmark for paRallel I/O ===========================
+#===============================================================================
+# Author: Marc B.R. Joos
+#
+# Created/last modified: oct 25, 2013/oct 30, 2013
+#
+# This file is distributed under GNU/GPL license, 
+# see <http://www.gnu.org/licenses/>.
+#===============================================================================
 
 bold=$(tput bold)
 reset=$(tput sgr0)
 
-usage="Usage:\n
+usage="${bold}Usage${reset}:\n
 \t ./configure [-h|--help] [-i|--interactive] [-m|--with-mpi[=]<value>] [-H|--with-phdf5[=]<value>] [-c|--with-pnetcdf[=]<value>] [-a|--with-adios[=]<value>]\n
 \n
--h, --help              \t\t\t print this help\n
--i, --interactive         \t\t to activate the interactive interface of BRIO\n
--m, --with-mpi=<MPIDIR>     \t to specify MPI library directory\n
--H, --with-phdf5=<HDFDIR>   \t to specify Parallel HDF5 library directory\n
--c, --with-pnetcdf=<CDFDIR> \t to specify Parallel NetCDF library directory\n
--a, --with-adios=<ADIDIR>   \t to specify ADIOS library directory
+${bold}-h, --help${reset}              \t\t\t print this help\n
+${bold}-i, --interactive${reset}         \t\t to activate the interactive interface of BRIO\n
+${bold}-m, --with-mpi=${reset}<MPIDIR>     \t to specify MPI library directory\n
+${bold}-H, --with-phdf5=${reset}<HDFDIR>   \t to specify Parallel HDF5 library directory\n
+${bold}-c, --with-pnetcdf=${reset}<CDFDIR> \t to specify Parallel NetCDF library directory\n
+${bold}-a, --with-adios=${reset}<ADIDIR>   \t to specify ADIOS library directory
 "
 
 INTERACTIVE=0
@@ -248,7 +258,7 @@ MAINSRC  = \$(wildcard \$(SRCDIR)/*f90)
 MAINOBJ  = \$(join \$(addsuffix \$(BINDIRSC)/, \$(dir \$(MAINSRC))), \$(notdir \$(MAINSRC:.f90=.o)))
 ALLOBJ   = \$(MODOBJ) \$(MAINOBJ)
 
-#============================================================================
+#== Compilation rules ==========================================================
 all: BRIO
 $(echo -e "\t")@echo "======================== \$(bold)BRIO\$(reset) =========================="
 $(echo -e "\t")@echo "============= Benchmark for parallel I/O ==============="
@@ -286,7 +296,7 @@ $(echo -e "\t")\$(F90) \$(MAINFLAGS) -c $^ -o \$@
 BRIO: adios \$(ALLOBJ)
 $(echo -e "\t")@echo " > \$(bold)Compiling BRIO...\$(reset)"
 $(echo -e "\t")\$(F90) \$(FLAGS) -o ./bin/BRIO \$(ALLOBJ) \$(ALLLIBS)
-#============================================================================
+#== ADIOS files ================================================================
 ifeq (\$(ADIOS),1)
 adios:
 $(echo -e "\t")@echo " > \$(bold)Generating *.fh files...\$(reset)"
@@ -295,7 +305,7 @@ $(echo -e "\t")mv *fh \$(MODDIR)
 else
 adios:
 endif
-#============================================================================
+#== Cleaning rules =============================================================
 clean:
 $(echo -e "\t")@echo " > \$(bold)Cleaning sources and binaries directories...\$(reset)"
 $(echo -e "\t")rm -rf \$(BINDIR)/*.o \$(BINDIR)/*.mod \$(MODDIR)/*.fh input/*.h5 input/*.nc input/*.bp input/*.mp input/sequentialio/
