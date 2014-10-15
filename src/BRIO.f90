@@ -23,7 +23,7 @@ program BRIO
   real(8), allocatable, dimension(:,:,:,:) :: data
   integer :: xpos, ypos, zpos
   integer :: i, j, k
-  integer :: totalsize
+  real(8) :: totalsize
   real(8) :: randval
   integer :: ierr
   real(8) :: tbegin_px, tend_px, tbegin_nc, tend_nc, tbegin_h5, tend_h5
